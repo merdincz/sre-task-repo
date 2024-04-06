@@ -1,13 +1,11 @@
 serverFiles:
-# Insert the correct values in all parameters marked with "#TODO"
   alerting_rules.yml:
       groups:
       - name: NodeDown
         rules:
-        # Alert for any instance that is unreachable for >5 minutes.
         - alert: InstanceDown
-          expr: up{job="kubernetes-nodes"} == 0[5m]
-          for: 2m
+          expr: up{job="kubernetes-nodes"} == 0
+          for: 5m
           labels:
             severity: page
           annotations:
@@ -33,14 +31,6 @@ serverFiles:
           annotations:
             description: "The persistent volume {{ $labels.persistentvolume }} has status {{ $labels.phase }}."
             summary: PersistentVolume is having issues with provisioning.
-        - alert: KubePodCrashLooping
-          expr: rate(kube_pod_container_status_restarts_total{job="kubernetes-service-endpoints",namespace=~".*"}[5m]) * 𝟼𝟶 * 𝟻 > 𝟶
-          for: 2m
-          labels:
-            severity: warning
-          annotations:
-            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }}) is restarting {{ printf "%.2f" $value }} times / 5 minutes."
-            summary: Pod is crash looping.
         - alert: KubePodNotReady
           expr: sum by(namespace, pod) (max by(namespace, pod) (kube_pod_status_phase{job="kubernetes-service-endpoints",namespace=~".*",phase=~"Pending|Unknown"}) * on(namespace, pod)    group_left(owner_kind) topk by(namespace, pod) (1, max by(namespace, pod, owner_kind) (kube_pod_owner{owner_kind!="Job"}))) > 0
           for: 2m
@@ -48,4 +38,12 @@ serverFiles:
             severity: warning
           annotations:
             description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in a non-ready state for longer than 5 minutes."
-            summary: Pod has been in a non-ready state for more than 2 minutes.
+            summary: "Pod has been in a non-ready state for more than 2 minutes."
+        - alert: KubePodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{job="kubernetes-service-endpoints",namespace=~".*"}[5m]) * 60 * 5 > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            description: 'Pod {{ $labels.namespace }}/{{ $labels.pod }} is restarting {{ printf "%.2f" $value }} times / 5 minutes.'
+            summary: "Pod is crash looping"
